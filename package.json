@@ -1,0 +1,13 @@
+{
+  "name": "innova-school-ai-tutors",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Landing y panel admin de accesos para profesores IA de Innova School.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

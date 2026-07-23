@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin Accesos | Innova School</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="admin-page">
+    <section class="admin-lock" id="adminLock">
+      <div class="admin-lock-card">
+        <img src="./assets/innova-school-emblem.png" alt="Emblema Innova School" />
+        <p class="eyebrow">Perfil administrador</p>
+        <h1>Gestión privada de accesos</h1>
+        <p>
+          Ingresa tu clave admin para generar credenciales, revisar permisos y
+          enviar accesos a estudiantes.
+        </p>
+        <form id="adminLoginForm">
+          <label>
+            Clave de administrador
+            <input id="adminPasscode" type="password" placeholder="Ingresa tu clave" autocomplete="current-password" required />
+          </label>
+          <button class="button primary wide" type="submit">Entrar al panel</button>
+        </form>
+        <small id="loginError" role="alert"></small>
+      </div>
+    </section>
+
+    <main class="admin-shell">
+      <section class="admin-hero">
+        <a class="brand" href="./index.html" aria-label="Volver a Innova School">
+          <img src="./assets/innova-school-emblem.png" alt="Emblema Innova School" />
+          <span>
+            <strong>Innova School</strong>
+            <small>Admin de accesos</small>
+          </span>
+        </a>
+        <button class="button secondary admin-logout" id="adminLogout" type="button">Cerrar panel</button>
+        <div>
+          <p class="eyebrow">Credenciales manuales</p>
+          <h1>Genera accesos para tus estudiantes</h1>
+          <p>
+            Verifica primero el pago en Tiendanube. Luego genera el código y envía
+            la credencial por WhatsApp o correo.
+          </p>
+        </div>
+      </section>
+
+      <section class="admin-grid">
+        <form class="access-form" id="accessForm">
+          <label>
+            Nombre del estudiante
+            <input id="studentName" type="text" placeholder="Ej. Laura Gómez" required />
+          </label>
+
+          <label>
+            Grado
+            <input id="studentGrade" type="text" placeholder="Ej. 10°" required />
+          </label>
+
+          <label>
+            Correo
+            <input id="studentEmail" type="email" placeholder="correo@ejemplo.com" required />
+          </label>
+
+          <label>
+            Tutor
+            <select id="tutorSelect" required>
+              <option value="JULIAN|Profesor Julián|https://tutor-fisica.onrender.com">
+                Profesor Julián - Física y Matemáticas
+              </option>
+              <option value="ESTEBAN|Profesor Esteban|https://tutor-matematicas.onrender.com">
+                Profesor Esteban - Matemáticas
+              </option>
+              <option value="ANDRES|Profesor Andrés|https://tutor-ciencias.onrender.com">
+                Profesor Andrés - Ciencias Naturales y Química
+              </option>
+              <option value="LAURA|Profesora Laura|https://tutor-sociales.onrender.com">
+                Profesora Laura - Ciencias Sociales
+              </option>
+              <option value="FELIPE|Profesor Felipe|PENDIENTE_URL_TUTOR">
+                Profesor Felipe - Tecnología, Programación y Robótica
+              </option>
+              <option value="MATEO|Profesor Mateo|PENDIENTE_URL_TUTOR">
+                Profesor Mateo - Lectura Crítica y Filosofía
+              </option>
+              <option value="EMILY|Miss Emily|PENDIENTE_URL_TUTOR">
+                Miss Emily - English and French Teacher
+              </option>
+            </select>
+          </label>
+
+          <label>
+            Duración
+            <select id="durationSelect" required>
+              <option value="15 minutos">15 minutos</option>
+              <option value="1 día">1 día</option>
+              <option value="7 días">7 días</option>
+              <option value="30 días" selected>30 días</option>
+              <option value="90 días">90 días</option>
+            </select>
+          </label>
+
+          <label>
+            Número de orden o comprobante
+            <input id="orderNumber" type="text" placeholder="Ej. Orden #1234" required />
+          </label>
+
+          <div class="limit-grid">
+            <label>
+              Sesiones por día
+              <input id="maxSessionsPerDay" type="number" min="1" max="10" value="3" required />
+            </label>
+
+            <label>
+              Mensajes por día
+              <input id="maxMessagesPerDay" type="number" min="1" max="200" value="30" required />
+            </label>
+          </div>
+
+          <button class="button primary wide" type="submit">Generar credencial</button>
+          <p class="admin-status" id="adminStatus" role="status"></p>
+        </form>
+
+        <aside class="credential-card">
+          <p class="eyebrow">Resultado</p>
+          <h2>Credencial lista para enviar</h2>
+          <textarea id="credentialOutput" readonly placeholder="Aquí aparecerá la credencial generada."></textarea>
+          <div class="admin-actions">
+            <button class="button secondary" id="copyCredential" type="button">Copiar credencial</button>
+            <a class="button whatsapp" id="sendWhatsapp" href="#" target="_blank" rel="noreferrer">
+              Enviar por WhatsApp
+            </a>
+          </div>
+          <p class="admin-note">
+            Nota: esta credencial se guarda en Supabase y el tutor valida el código antes
+            de iniciar la sesión.
+          </p>
+        </aside>
+      </section>
+
+      <section class="admin-accesses">
+        <div class="admin-section-heading">
+          <div>
+            <p class="eyebrow">Permisos creados</p>
+            <h2>Historial local de credenciales</h2>
+          </div>
+          <button class="button secondary" id="exportAccesses" type="button">Exportar JSON</button>
+        </div>
+
+        <div class="access-table-wrap">
+          <table class="access-table">
+            <thead>
+              <tr>
+                <th>Estado</th>
+                <th>Código</th>
+                <th>Estudiante</th>
+                <th>Tutor</th>
+                <th>Duración</th>
+                <th>Orden</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="accessTableBody">
+              <tr>
+                <td colspan="7">Aún no hay credenciales generadas.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p class="admin-note">
+          Este historial se lee desde Supabase. Si desactivas un código aquí, el estudiante
+          no podrá seguir usando ese acceso.
+        </p>
+      </section>
+    </main>
+
+    <script src="./admin.js"></script>
+  </body>
+</html>

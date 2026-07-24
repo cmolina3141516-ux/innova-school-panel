@@ -222,7 +222,7 @@ function getTutorInfo(key) {
     LAURA: ["Profesora Laura", "https://tutor-sociales.onrender.com"],
     FELIPE: ["Profesor Felipe", "PENDIENTE_URL_TUTOR"],
     MATEO: ["Profesor Mateo", "PENDIENTE_URL_TUTOR"],
-    EMILY: ["Miss Emily", "PENDIENTE_URL_TUTOR"]
+    EMILY: ["Miss Emily", "https://tutor-emily.onrender.com"]
   };
   const [name, url] = tutors[key] || [key, "PENDIENTE_URL_TUTOR"];
   return { name, url };

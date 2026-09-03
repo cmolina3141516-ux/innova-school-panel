@@ -56,3 +56,38 @@ teacherButtons.forEach((button) => {
 });
 
 renderSelection();
+
+const cursorHalo = document.querySelector(".cursor-halo");
+const supportsCursorMotion = window.matchMedia("(pointer: fine)").matches
+  && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+if (cursorHalo && supportsCursorMotion) {
+  let targetX = -80;
+  let targetY = -80;
+  let currentX = targetX;
+  let currentY = targetY;
+
+  const moveCursorHalo = () => {
+    currentX += (targetX - currentX) * 0.2;
+    currentY += (targetY - currentY) * 0.2;
+    cursorHalo.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) translate(-50%, -50%)`;
+    window.requestAnimationFrame(moveCursorHalo);
+  };
+
+  window.addEventListener("pointermove", (event) => {
+    targetX = event.clientX;
+    targetY = event.clientY;
+    cursorHalo.classList.add("is-visible");
+  }, { passive: true });
+
+  document.documentElement.addEventListener("mouseleave", () => {
+    cursorHalo.classList.remove("is-visible");
+  });
+
+  document.querySelectorAll("a, button, .hero-panel, .value-card, .teacher-card").forEach((element) => {
+    element.addEventListener("pointerenter", () => cursorHalo.classList.add("is-active"));
+    element.addEventListener("pointerleave", () => cursorHalo.classList.remove("is-active"));
+  });
+
+  moveCursorHalo();
+}

@@ -84,10 +84,35 @@ if (cursorHalo && supportsCursorMotion) {
     cursorHalo.classList.remove("is-visible");
   });
 
-  document.querySelectorAll("a, button, .hero-panel, .value-card, .teacher-card").forEach((element) => {
+  document.querySelectorAll("a, button, .learning-stage, .value-card, .teacher-card").forEach((element) => {
     element.addEventListener("pointerenter", () => cursorHalo.classList.add("is-active"));
     element.addEventListener("pointerleave", () => cursorHalo.classList.remove("is-active"));
   });
 
   moveCursorHalo();
+}
+
+const learningStage = document.querySelector(".learning-stage");
+
+if (learningStage && supportsCursorMotion) {
+  const depthLayers = learningStage.querySelectorAll("[data-depth]");
+
+  learningStage.addEventListener("pointermove", (event) => {
+    const bounds = learningStage.getBoundingClientRect();
+    const offsetX = (event.clientX - bounds.left) / bounds.width - 0.5;
+    const offsetY = (event.clientY - bounds.top) / bounds.height - 0.5;
+
+    depthLayers.forEach((layer) => {
+      const depth = Number(layer.dataset.depth || 1);
+      layer.style.setProperty("--stage-x", `${offsetX * 16 * depth}px`);
+      layer.style.setProperty("--stage-y", `${offsetY * 12 * depth}px`);
+    });
+  });
+
+  learningStage.addEventListener("pointerleave", () => {
+    depthLayers.forEach((layer) => {
+      layer.style.setProperty("--stage-x", "0px");
+      layer.style.setProperty("--stage-y", "0px");
+    });
+  });
 }

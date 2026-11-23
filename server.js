@@ -1,6 +1,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const rootDir = __dirname;
 const port = Number(process.env.PORT || 8890);
@@ -36,8 +37,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "GET" && url.pathname === "/api/admin/accesses") {
-    if (!isAdminAuthorized(req)) {
-      sendJson(res, 401, { error: "No autorizado." });
+    if (!requireAdmin(req, res)) {
       return;
     }
 
@@ -51,8 +51,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "POST" && url.pathname === "/api/admin/accesses") {
-    if (!isAdminAuthorized(req)) {
-      sendJson(res, 401, { error: "No autorizado." });
+    if (!requireAdmin(req, res)) {
       return;
     }
 
@@ -67,8 +66,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method === "PATCH" && url.pathname.startsWith("/api/admin/accesses/")) {
-    if (!isAdminAuthorized(req)) {
-      sendJson(res, 401, { error: "No autorizado." });
+    if (!requireAdmin(req, res)) {
       return;
     }
 
@@ -317,8 +315,104 @@ async function supabaseRequest(pathname, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+// Límite de intentos fallidos de la clave de administrador.
+// Por IP: 5 fallos en 15 minutos bloquean esa IP 15 minutos.
+// Global: 30 fallos en 15 minutos (de cualquier IP) bloquean el panel 15 minutos,
+// por si alguien cambia de IP para seguir probando claves.
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_BLOCK_MS = 15 * 60 * 1000;
+const MAX_FAILS_PER_IP = 5;
+const MAX_FAILS_GLOBAL = 30;
+const failedLoginsByIp = new Map();
+const globalFailures = [];
+let globalBlockedUntil = 0;
+
 function isAdminAuthorized(req) {
-  return req.headers["x-admin-passcode"] === ADMIN_PASSCODE;
+  const ip = getClientIp(req);
+  const now = Date.now();
+  if (getAdminBlockRemainingMs(ip, now) > 0) {
+    return false;
+  }
+
+  const provided = String(req.headers["x-admin-passcode"] || "");
+  const authorized = safeEqual(provided, ADMIN_PASSCODE);
+  if (authorized) {
+    failedLoginsByIp.delete(ip);
+  } else {
+    registerFailedLogin(ip, now);
+  }
+  return authorized;
+}
+
+// Responde 401 o 429 según el caso. Devuelve true si la petición puede seguir.
+function requireAdmin(req, res) {
+  if (isAdminAuthorized(req)) {
+    return true;
+  }
+  const remainingMs = getAdminBlockRemainingMs(getClientIp(req), Date.now());
+  if (remainingMs > 0) {
+    const minutes = Math.max(1, Math.ceil(remainingMs / 60000));
+    res.setHeader("Retry-After", String(Math.ceil(remainingMs / 1000)));
+    sendJson(res, 429, {
+      error: `Demasiados intentos fallidos. Espera ${minutes} minuto${minutes === 1 ? "" : "s"} e intenta de nuevo.`
+    });
+  } else {
+    sendJson(res, 401, { error: "No autorizado." });
+  }
+  return false;
+}
+
+function getAdminBlockRemainingMs(ip, now) {
+  const entry = failedLoginsByIp.get(ip);
+  const ipRemaining = entry && entry.blockedUntil > now ? entry.blockedUntil - now : 0;
+  const globalRemaining = globalBlockedUntil > now ? globalBlockedUntil - now : 0;
+  return Math.max(ipRemaining, globalRemaining);
+}
+
+function registerFailedLogin(ip, now) {
+  let entry = failedLoginsByIp.get(ip);
+  if (!entry || now - entry.firstAt > LOGIN_WINDOW_MS) {
+    entry = { count: 0, firstAt: now, blockedUntil: 0 };
+    failedLoginsByIp.set(ip, entry);
+  }
+  entry.count += 1;
+  if (entry.count >= MAX_FAILS_PER_IP) {
+    entry.blockedUntil = now + LOGIN_BLOCK_MS;
+    console.warn(`[admin] IP bloqueada ${LOGIN_BLOCK_MS / 60000} min por ${entry.count} intentos fallidos: ${ip}`);
+  }
+
+  globalFailures.push(now);
+  while (globalFailures.length && now - globalFailures[0] > LOGIN_WINDOW_MS) {
+    globalFailures.shift();
+  }
+  if (globalFailures.length >= MAX_FAILS_GLOBAL && globalBlockedUntil <= now) {
+    globalBlockedUntil = now + LOGIN_BLOCK_MS;
+    globalFailures.length = 0;
+    console.warn(`[admin] Panel bloqueado ${LOGIN_BLOCK_MS / 60000} min por ${MAX_FAILS_GLOBAL} intentos fallidos en total.`);
+  }
+}
+
+// Limpia registros viejos para que la memoria no crezca.
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of failedLoginsByIp) {
+    if (entry.blockedUntil <= now && now - entry.firstAt > LOGIN_WINDOW_MS) {
+      failedLoginsByIp.delete(ip);
+    }
+  }
+}, 10 * 60 * 1000).unref();
+
+function getClientIp(req) {
+  // Render pone la IP real del visitante al principio de x-forwarded-for.
+  const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return forwarded || req.socket.remoteAddress || "desconocida";
+}
+
+// Compara sin filtrar por tiempo cuántos caracteres coinciden.
+function safeEqual(a, b) {
+  const hashA = crypto.createHash("sha256").update(a).digest();
+  const hashB = crypto.createHash("sha256").update(b).digest();
+  return crypto.timingSafeEqual(hashA, hashB);
 }
 
 function ensureSupabaseConfigured() {

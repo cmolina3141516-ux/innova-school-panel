@@ -10,7 +10,7 @@
 //    reutilizan los mismos códigos y el correo solo se reenvía si no salió.
 //
 // Variables: TIENDANUBE_APP_ID, TIENDANUBE_APP_SECRET, APP_URL, RESEND_API_KEY, MAIL_FROM.
-// Opcionales: TIENDANUBE_PRODUCT_IDS (por defecto el producto de los profesores), TIENDANUBE_ACCESS_DAYS (30),
+// Opcionales: TIENDANUBE_CONTACT_EMAIL (correo de contacto de la app, va en el User-Agent), TIENDANUBE_PRODUCT_IDS (por defecto el producto de los profesores), TIENDANUBE_ACCESS_DAYS (30),
 // MAIL_BCC (copia oculta de cada correo), MAIL_REPLY_TO, TIENDANUBE_API_BASE y RESEND_API_BASE (solo pruebas).
 
 const crypto = require("crypto");
@@ -18,7 +18,8 @@ const crypto = require("crypto");
 const TN_API = String(process.env.TIENDANUBE_API_BASE || "https://api.tiendanube.com/v1").replace(/\/+$/, "");
 const TN_AUTH_URL = process.env.TIENDANUBE_AUTH_URL || "https://www.tiendanube.com/apps/authorize/token";
 const RESEND_API = String(process.env.RESEND_API_BASE || "https://api.resend.com").replace(/\/+$/, "");
-const USER_AGENT = "Virtual Planet Profesores IA (https://innova-school-panel.onrender.com)";
+// Tiendanube pide identificar cada consulta con el nombre de la app y el correo de contacto registrado.
+const USER_AGENT = `Profesores IA - Nova School (${process.env.TIENDANUBE_CONTACT_EMAIL || "https://innova-school-panel.onrender.com"})`;
 // «PROFESORES ESPECIALISTAS CON I.A. (1 mes de acompañamiento full)» en virtualplanet3.mitiendanube.com.
 const PRODUCT_IDS = String(process.env.TIENDANUBE_PRODUCT_IDS || "357172769")
   .split(",")

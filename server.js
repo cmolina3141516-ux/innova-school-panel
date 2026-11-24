@@ -84,6 +84,19 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Recuperar el acceso a los profesores por correo (página /entrar).
+  if (req.method === "POST" && url.pathname === "/api/recuperar") {
+    try {
+      const body = await readJsonBody(req);
+      const result = await tiendanube.handleRecovery(body.email, getClientIp(req));
+      sendJson(res, result.status, result.body);
+    } catch (error) {
+      console.error("[recuperar] Error:", getErrorMessage(error));
+      sendJson(res, 500, { error: "No pudimos procesar la solicitud. Intenta de nuevo en unos minutos." });
+    }
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/api/admin/test-email") {
     if (!requireAdmin(req, res)) {
       return;
@@ -481,10 +494,10 @@ function removeAccents(value) {
 }
 
 // Solo estos archivos son públicos; el código del servidor, el SQL y package.json no.
-const PUBLIC_FILES = new Set(["/index.html", "/admin.html", "/app.js", "/admin.js", "/styles.css"]);
+const PUBLIC_FILES = new Set(["/index.html", "/admin.html", "/entrar.html", "/app.js", "/admin.js", "/styles.css"]);
 
 function serveStatic(urlPath, res) {
-  const safePath = urlPath === "/" ? "/index.html" : urlPath;
+  const safePath = urlPath === "/" ? "/index.html" : urlPath === "/entrar" || urlPath === "/entrar/" ? "/entrar.html" : urlPath;
   if (!PUBLIC_FILES.has(safePath) && !/^\/assets\/[\w.-]+\.(png|jpe?g|svg|ico|webp)$/i.test(safePath)) {
     sendJson(res, 404, { error: "Archivo no encontrado." });
     return;

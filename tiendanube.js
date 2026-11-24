@@ -303,6 +303,63 @@ function createTiendanube({ supabaseRequest, isSupabaseConfigured }) {
     }
   }
 
+  // Correo con los accesos: una tarjeta por profesor con el código, el botón para entrar y un botón para
+  // reenviárselo al estudiante por WhatsApp (el comprador suele ser el padre, en otro dispositivo).
+  function renderAccessEmail({ hello, intro, items, notes }) {
+    const cards = items.map(({ code, tutor, expiresAt }) => {
+      const info = TUTORS[tutor] || { name: tutor, subject: "", url: "" };
+      const link = `${info.url}/?code=${encodeURIComponent(code)}`;
+      const until = expiresAt ? formatDate(expiresAt) : "";
+      const share = [
+        `Hola. Este es tu acceso a ${info.name} (${info.subject}) de Nova School${until ? `, válido hasta el ${until}` : ""}.`,
+        `Entra aquí: ${link}`,
+        "Ábrelo en tu celular o computador: quedará guardado para la próxima vez."
+      ].join("\n");
+      return { ...info, code, link, until, whatsapp: `https://wa.me/?text=${encodeURIComponent(share)}` };
+    });
+
+    const text = [
+      hello,
+      "",
+      intro,
+      "",
+      ...cards.flatMap((card) => [
+        `${card.name} (${card.subject})`,
+        `  Código: ${card.code}`,
+        ...(card.until ? [`  Vigente hasta: ${card.until}`] : []),
+        `  Entrar: ${card.link}`,
+        `  Enviar al estudiante por WhatsApp: ${card.whatsapp}`,
+        ""
+      ]),
+      ...notes,
+      "",
+      "Virtual Planet"
+    ].join("\n");
+
+    const cardHtml = (card) => `
+  <div style="border:1px solid #dbe3ee;border-radius:14px;padding:16px;margin:14px 0">
+    <p style="margin:0;font-size:12px;letter-spacing:1px;color:#1d4e89;text-transform:uppercase">${escapeHtml(card.subject)}</p>
+    <p style="margin:4px 0 10px;font-size:18px;font-weight:bold;color:#0f172a">${escapeHtml(card.name)}</p>
+    <p style="margin:0 0 6px"><span style="display:inline-block;padding:8px 14px;border-radius:10px;background:#eef2ff;color:#1e3a8a;font-size:18px;font-weight:bold;letter-spacing:1px;font-family:Consolas,monospace">${escapeHtml(card.code)}</span></p>
+    ${card.until ? `<p style="margin:0 0 12px;font-size:13px;color:#475569">Vigente hasta el ${escapeHtml(card.until)}</p>` : '<p style="margin:0 0 6px"></p>'}
+    <a href="${escapeHtml(card.link)}" style="display:inline-block;background:#1d4e89;color:#ffffff;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:bold;margin:0 8px 8px 0">Entrar con ${escapeHtml(card.name)}</a>
+    <a href="${escapeHtml(card.whatsapp)}" style="display:inline-block;background:#25d366;color:#ffffff;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:bold;margin:0 0 8px 0">Enviar al estudiante por WhatsApp</a>
+  </div>`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:540px;margin:auto;color:#1e293b">
+  <p>${escapeHtml(hello)}</p>
+  <p>${escapeHtml(intro)}</p>
+  ${cards.map(cardHtml).join("")}
+  ${notes.map((note) => `<p style="font-size:13px;color:#475569">${escapeHtml(note)}</p>`).join("\n  ")}
+  <p style="font-size:13px;color:#475569">Virtual Planet</p>
+</div>`;
+    return { html, text };
+  }
+
+  function recoveryUrl() {
+    const appUrl = String(process.env.APP_URL || "https://innova-school-panel.onrender.com").replace(/\/+$/, "");
+    return `${appUrl}/entrar`;
+  }
+
   async function sendCodesEmail(record) {
     const codes = record.codes || [];
     const firstName = String(record.buyer_name || "").split(/\s+/)[0];
@@ -316,43 +373,98 @@ function createTiendanube({ supabaseRequest, isSupabaseConfigured }) {
     const intro = `Gracias por tu compra${orderLabel}. ${many ? "Estos son tus accesos" : "Este es tu acceso"} a los profesores con inteligencia artificial de Nova School by Virtual Planet, válido${many ? "s" : ""} hasta el ${until}.`;
     const notes = [
       ...(record.test ? ["ESTE ES UN CORREO DE PRUEBA enviado desde el panel: los códigos son de muestra y no permiten entrar."] : []),
-      "Toca el botón de cada profesor para entrar: el código ya va incluido. También puedes escribirlo a mano en la página del profesor.",
+      "Si el estudiante usa otro celular o computador, tócale «Enviar al estudiante por WhatsApp» y elige su contacto. Al abrir el enlace en su dispositivo, el acceso queda guardado y la próxima vez entra directo.",
       "Cada código es para un solo estudiante y funciona en una sesión a la vez.",
-      `Guarda este correo. Si tienes algún problema, escríbenos por WhatsApp: ${WHATSAPP_URL}`
+      `¿Perdieron el enlace? Recupéralo cuando quieras con este correo en ${recoveryUrl()}`,
+      `Si tienes algún problema, escríbenos por WhatsApp: ${WHATSAPP_URL}`
     ];
-
-    const items = codes.map(({ code, tutor }) => {
-      const info = TUTORS[tutor] || { name: tutor, subject: "", url: "" };
-      return { ...info, code, link: `${info.url}/?code=${encodeURIComponent(code)}` };
-    });
-
-    const text = [
-      hello,
-      "",
-      intro,
-      "",
-      ...items.flatMap((item) => [`${item.name} (${item.subject})`, `  Código: ${item.code}`, `  Entrar: ${item.link}`, ""]),
-      ...notes,
-      "",
-      "Virtual Planet"
-    ].join("\n");
-
-    const card = (item) => `
-  <div style="border:1px solid #dbe3ee;border-radius:14px;padding:16px;margin:14px 0">
-    <p style="margin:0;font-size:12px;letter-spacing:1px;color:#1d4e89;text-transform:uppercase">${escapeHtml(item.subject)}</p>
-    <p style="margin:4px 0 10px;font-size:18px;font-weight:bold;color:#0f172a">${escapeHtml(item.name)}</p>
-    <p style="margin:0 0 12px"><span style="display:inline-block;padding:8px 14px;border-radius:10px;background:#eef2ff;color:#1e3a8a;font-size:18px;font-weight:bold;letter-spacing:1px;font-family:Consolas,monospace">${escapeHtml(item.code)}</span></p>
-    <a href="${escapeHtml(item.link)}" style="display:inline-block;background:#1d4e89;color:#ffffff;padding:10px 20px;border-radius:999px;text-decoration:none;font-weight:bold">Entrar con ${escapeHtml(item.name)}</a>
-  </div>`;
-    const html = `<div style="font-family:Arial,sans-serif;max-width:540px;margin:auto;color:#1e293b">
-  <p>${escapeHtml(hello)}</p>
-  <p>${escapeHtml(intro)}</p>
-  ${items.map(card).join("")}
-  ${notes.map((note) => `<p style="font-size:13px;color:#475569">${escapeHtml(note)}</p>`).join("\n  ")}
-  <p style="font-size:13px;color:#475569">Virtual Planet</p>
-</div>`;
-
+    const { html, text } = renderAccessEmail({ hello, intro, items: codes, notes });
     await sendMail({ to: record.buyer_email, subject, html, text });
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Recuperar el acceso: /entrar. Se escribe un correo y, si tiene profesores vigentes, se le envían
+  // a ESE correo (nunca se muestran en pantalla ni se dice si el correo existe).
+  const recoveryByIp = new Map();
+  const recoveryByEmail = new Map();
+  const recoveryGlobal = [];
+  const RECOVERY_WINDOW_MS = 15 * 60 * 1000;
+  const RECOVERY_OK = "Si ese correo tiene profesores vigentes, en unos minutos le llegará un mensaje con sus enlaces de entrada. Revisa también la carpeta de spam.";
+
+  function underLimit(map, key, max, windowMs, now) {
+    const list = (map.get(key) || []).filter((t) => now - t < windowMs);
+    if (list.length >= max) {
+      map.set(key, list);
+      return false;
+    }
+    list.push(now);
+    map.set(key, list);
+    return true;
+  }
+
+  async function handleRecovery(rawEmail, ip) {
+    const email = String(rawEmail || "").trim().toLowerCase();
+    if (!/^[^\s@*%,;()]+@[^\s@*%,;()]+\.[^\s@*%,;()]+$/.test(email) || email.length > 120) {
+      return { status: 400, body: { error: "Escribe un correo válido." } };
+    }
+    const now = Date.now();
+    while (recoveryGlobal.length && now - recoveryGlobal[0] > 60 * 60 * 1000) {
+      recoveryGlobal.shift();
+    }
+    if (!underLimit(recoveryByIp, ip || "?", 5, RECOVERY_WINDOW_MS, now) || recoveryGlobal.length >= 200) {
+      return { status: 429, body: { error: "Hiciste muchas solicitudes seguidas. Espera unos minutos e intenta de nuevo." } };
+    }
+    recoveryGlobal.push(now);
+    // Por correo: máximo 3 envíos por hora (si se pasa, se responde igual pero no se envía).
+    if (!underLimit(recoveryByEmail, email, 3, 60 * 60 * 1000, now)) {
+      return { status: 200, body: { message: RECOVERY_OK } };
+    }
+    if (!isSupabaseConfigured() || !isMailConfigured()) {
+      console.error("[recuperar] Falta configurar Supabase o el correo.");
+      return { status: 503, body: { error: "La recuperación no está disponible en este momento. Escríbenos por WhatsApp." } };
+    }
+
+    // ilike para encontrar correos guardados con mayúsculas; luego se exige coincidencia EXACTA
+    // (en ilike «_» es comodín y podría traer códigos de otro correo).
+    const rows = await supabaseRequest(
+      `access_codes?email=ilike.${encodeURIComponent(email)}&is_active=eq.true&select=code,tutor_prefix,email,expires_at&order=expires_at.asc&limit=50`
+    );
+    const valid = (Array.isArray(rows) ? rows : []).filter(
+      (row) =>
+        String(row.email || "").trim().toLowerCase() === email &&
+        TUTORS[String(row.tutor_prefix || "").toUpperCase()] &&
+        (!row.expires_at || new Date(row.expires_at).getTime() > now)
+    );
+    if (!valid.length) {
+      console.log("[recuperar] Solicitud sin profesores vigentes.");
+      return { status: 200, body: { message: RECOVERY_OK } };
+    }
+
+    const items = valid.map((row) => ({ code: row.code, tutor: String(row.tutor_prefix).toUpperCase(), expiresAt: row.expires_at }));
+    const many = items.length > 1;
+    const { html, text } = renderAccessEmail({
+      hello: "Hola:",
+      intro: `Pediste recuperar tus accesos de Nova School. ${many ? `Estos son tus ${items.length} profesores vigentes` : "Este es tu profesor vigente"}.`,
+      items,
+      notes: [
+        "Toca «Entrar» desde el dispositivo del estudiante, o «Enviar al estudiante por WhatsApp» para pasárselo. Al abrirlo, el acceso queda guardado en ese dispositivo.",
+        "Si no pediste este correo, puedes ignorarlo.",
+        `Si tienes algún problema, escríbenos por WhatsApp: ${WHATSAPP_URL}`
+      ]
+    });
+    try {
+      await sendMail({
+        to: email,
+        subject: many ? `Tus ${items.length} profesores de Nova School` : `Tu acceso a ${TUTORS[items[0].tutor].name} · Nova School`,
+        html,
+        text
+      });
+      console.log(`[recuperar] Enviados ${items.length} accesos.`);
+    } catch (error) {
+      console.error(`[recuperar] No se pudo enviar el correo: ${String(error?.message || error).slice(0, 200)}`);
+      return { status: 502, body: { error: "No pudimos enviar el correo en este momento. Intenta de nuevo en unos minutos." } };
+    }
+    return { status: 200, body: { message: RECOVERY_OK } };
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -475,7 +587,7 @@ function createTiendanube({ supabaseRequest, isSupabaseConfigured }) {
     console.log("[tiendanube] Correo de prueba enviado desde el panel.");
   }
 
-  return { handleOrderWebhook, handleInstall, handlePrivacyWebhook, sendTestEmail, tutorUnits, isValidSignature };
+  return { handleOrderWebhook, handleInstall, handlePrivacyWebhook, handleRecovery, sendTestEmail, tutorUnits, isValidSignature };
 }
 
 // Código del profesor con azar criptográfico: PREFIJO-XXXX-XXXX-AAAAMMDD.

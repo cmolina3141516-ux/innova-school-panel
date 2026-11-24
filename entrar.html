@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Entrar a mis profesores · Nova School</title>
+  <meta name="description" content="Recupera el acceso a tus profesores con inteligencia artificial de Nova School." />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px;
+      font-family: "Segoe UI", Arial, sans-serif; color: #0f172a;
+      background: linear-gradient(160deg, #eaf1fb 0%, #f8fafc 60%, #fdf6e3 100%); }
+    main { width: 100%; max-width: 460px; background: #fff; border-radius: 22px; padding: 32px 28px;
+      box-shadow: 0 18px 50px rgba(29, 78, 137, 0.15); }
+    .brand { margin: 0 0 4px; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: #1d4e89; text-transform: uppercase; }
+    h1 { margin: 0 0 12px; font-size: 26px; line-height: 1.2; }
+    p { line-height: 1.5; color: #334155; }
+    label { display: block; margin: 20px 0 6px; font-weight: 700; }
+    input { width: 100%; padding: 14px 16px; font-size: 16px; border: 1px solid #cbd5e1; border-radius: 12px; }
+    input:focus { outline: 3px solid rgba(29, 78, 137, 0.25); border-color: #1d4e89; }
+    button { width: 100%; margin-top: 14px; padding: 14px 18px; font-size: 16px; font-weight: 700; color: #fff;
+      background: #1d4e89; border: 0; border-radius: 999px; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: wait; }
+    .status { min-height: 1.5em; margin-top: 16px; font-weight: 600; }
+    .status.ok { color: #166534; }
+    .status.error { color: #b91c1c; }
+    .help { margin-top: 22px; font-size: 14px; }
+    .help a { color: #1d4e89; font-weight: 700; }
+    ul { padding-left: 20px; color: #334155; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <main>
+    <p class="brand">Nova School · Profesores con I.A.</p>
+    <h1>Entrar a mis profesores</h1>
+    <p>¿Perdiste el enlace? Escribe el correo con el que se hizo la compra y te enviamos de nuevo los enlaces de todos los profesores vigentes.</p>
+    <form id="recoveryForm" novalidate>
+      <label for="email">Correo de la compra</label>
+      <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="correo@ejemplo.com" required />
+      <button type="submit">Enviarme mis enlaces</button>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </form>
+    <ul>
+      <li>El correo llega con un botón para entrar y otro para pasarle el acceso al estudiante por WhatsApp.</li>
+      <li>Al abrir el enlace en el celular o computador del estudiante, el acceso queda guardado y la próxima vez entra directo.</li>
+    </ul>
+    <p class="help">¿No te llega? <a href="https://wa.me/573013364867?text=Hola%2C%20necesito%20recuperar%20mi%20acceso%20a%20los%20profesores%20de%20Nova%20School." target="_blank" rel="noreferrer">Escríbenos por WhatsApp</a></p>
+  </main>
+  <script>
+    const form = document.getElementById("recoveryForm");
+    const status = document.getElementById("status");
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const email = document.getElementById("email").value.trim();
+      const button = form.querySelector("button");
+      status.className = "status";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        status.className = "status error";
+        status.textContent = "Escribe un correo válido.";
+        return;
+      }
+      button.disabled = true;
+      status.textContent = "Enviando...";
+      try {
+        const response = await fetch("/api/recuperar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || "No pudimos procesar la solicitud. Intenta de nuevo.");
+        }
+        status.className = "status ok";
+        status.textContent = data.message;
+      } catch (error) {
+        status.className = "status error";
+        status.textContent = error.message;
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

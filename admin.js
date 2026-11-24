@@ -285,3 +285,25 @@ exportButton?.addEventListener("click", () => {
 
 initializeLock();
 renderAccesses();
+
+// Correo de prueba de la venta automática.
+const testEmailForm = document.querySelector("#testEmailForm");
+const testEmailStatus = document.querySelector("#testEmailStatus");
+testEmailForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const email = document.querySelector("#testEmailAddress").value.trim();
+  const button = testEmailForm.querySelector("button[type='submit']");
+  button.disabled = true;
+  testEmailStatus.dataset.type = "info";
+  testEmailStatus.textContent = "Enviando...";
+  try {
+    await apiRequest("/api/admin/test-email", { method: "POST", body: { email } });
+    testEmailStatus.dataset.type = "success";
+    testEmailStatus.textContent = `Correo de prueba enviado a ${email}. Revisa también la carpeta de spam.`;
+  } catch (error) {
+    testEmailStatus.dataset.type = "error";
+    testEmailStatus.textContent = error.message || "No se pudo enviar el correo de prueba.";
+  } finally {
+    button.disabled = false;
+  }
+});

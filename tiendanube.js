@@ -310,11 +310,12 @@ function createTiendanube({ supabaseRequest, isSupabaseConfigured }) {
     const many = codes.length > 1;
     const until = formatDate(record.expires_at);
     const orderLabel = record.order_number ? ` #${record.order_number}` : "";
-    const subject = many
+    const subject = (record.test ? "[Prueba] " : "") + (many
       ? `Tus ${codes.length} accesos a los profesores con I.A. · Nova School`
-      : `Tu acceso a ${TUTORS[codes[0].tutor]?.name || "tu profesor"} con I.A. · Nova School`;
+      : `Tu acceso a ${TUTORS[codes[0].tutor]?.name || "tu profesor"} con I.A. · Nova School`);
     const intro = `Gracias por tu compra${orderLabel}. ${many ? "Estos son tus accesos" : "Este es tu acceso"} a los profesores con inteligencia artificial de Nova School by Virtual Planet, válido${many ? "s" : ""} hasta el ${until}.`;
     const notes = [
+      ...(record.test ? ["ESTE ES UN CORREO DE PRUEBA enviado desde el panel: los códigos son de muestra y no permiten entrar."] : []),
       "Toca el botón de cada profesor para entrar: el código ya va incluido. También puedes escribirlo a mano en la página del profesor.",
       "Cada código es para un solo estudiante y funciona en una sesión a la vez.",
       `Guarda este correo. Si tienes algún problema, escríbenos por WhatsApp: ${WHATSAPP_URL}`
@@ -451,7 +452,30 @@ function createTiendanube({ supabaseRequest, isSupabaseConfigured }) {
     return { status: 200, body: { success: true } };
   }
 
-  return { handleOrderWebhook, handleInstall, handlePrivacyWebhook, tutorUnits, isValidSignature };
+  // Correo de prueba desde el panel de administración: mismo diseño, códigos de muestra que no existen.
+  async function sendTestEmail(to) {
+    const email = String(to || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new Error("Escribe un correo válido.");
+    }
+    if (!isMailConfigured()) {
+      throw new Error("Faltan RESEND_API_KEY o MAIL_FROM en Render.");
+    }
+    await sendCodesEmail({
+      test: true,
+      buyer_email: email,
+      buyer_name: "",
+      order_number: "PRUEBA",
+      expires_at: new Date(Date.now() + ACCESS_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+      codes: [
+        { code: "FELIPE-MUES-TRA0-00000000", tutor: "FELIPE" },
+        { code: "LAURA-MUES-TRA0-00000000", tutor: "LAURA" }
+      ]
+    });
+    console.log("[tiendanube] Correo de prueba enviado desde el panel.");
+  }
+
+  return { handleOrderWebhook, handleInstall, handlePrivacyWebhook, sendTestEmail, tutorUnits, isValidSignature };
 }
 
 // Código del profesor con azar criptográfico: PREFIJO-XXXX-XXXX-AAAAMMDD.

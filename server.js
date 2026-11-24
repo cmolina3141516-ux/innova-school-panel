@@ -84,6 +84,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && url.pathname === "/api/admin/test-email") {
+    if (!requireAdmin(req, res)) {
+      return;
+    }
+    try {
+      const body = await readJsonBody(req);
+      await tiendanube.sendTestEmail(body.email);
+      sendJson(res, 200, { sent: true });
+    } catch (error) {
+      sendJson(res, 400, { error: getErrorMessage(error) });
+    }
+    return;
+  }
+
   // Tiendanube: aviso de pedido pagado → códigos y correo automático (tiendanube.js).
   if (req.method === "POST" && url.pathname === "/api/webhooks/tiendanube") {
     try {

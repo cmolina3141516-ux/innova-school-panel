@@ -218,8 +218,8 @@ function getTutorInfo(key) {
     ESTEBAN: ["Profesor Esteban", "https://tutor-matematicas.onrender.com"],
     ANDRES: ["Profesor Andrés", "https://tutor-naturales.onrender.com"],
     LAURA: ["Profesora Laura", "https://tutor-sociales.onrender.com"],
-    FELIPE: ["Profesor Felipe", "PENDIENTE_URL_TUTOR"],
-    MATEO: ["Profesor Mateo", "PENDIENTE_URL_TUTOR"],
+    FELIPE: ["Profesor Felipe", "https://tutor-felipe.onrender.com"],
+    MATEO: ["Profesor Mateo", "https://tutor-mateo.onrender.com"],
     EMILY: ["Miss Emily", "https://tutor-emily.onrender.com"]
   };
   const [name, url] = tutors[key] || [key, "PENDIENTE_URL_TUTOR"];

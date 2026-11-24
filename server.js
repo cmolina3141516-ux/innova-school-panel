@@ -2,6 +2,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { createTiendanube, buildAccessCode: buildSecureAccessCode } = require("./tiendanube");
 
 const rootDir = __dirname;
 const port = Number(process.env.PORT || 8890);
@@ -20,6 +21,8 @@ const MIME_TYPES = {
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon"
 };
+
+const tiendanube = createTiendanube({ supabaseRequest, isSupabaseConfigured });
 
 const server = http.createServer(async (req, res) => {
   if (!req.url) {
@@ -77,6 +80,45 @@ const server = http.createServer(async (req, res) => {
       sendJson(res, 200, { access });
     } catch (error) {
       sendJson(res, 400, { error: getErrorMessage(error) });
+    }
+    return;
+  }
+
+  // Tiendanube: aviso de pedido pagado → códigos y correo automático (tiendanube.js).
+  if (req.method === "POST" && url.pathname === "/api/webhooks/tiendanube") {
+    try {
+      const raw = await readRawBody(req);
+      const result = await tiendanube.handleOrderWebhook(raw, req.headers["x-linkedstore-hmac-sha256"]);
+      sendJson(res, result.status, result.body);
+    } catch (error) {
+      console.error("[tiendanube] Error en el aviso de pedido:", getErrorMessage(error));
+      sendJson(res, 500, { error: "Error interno" });
+    }
+    return;
+  }
+
+  if (req.method === "POST" && url.pathname.startsWith("/api/webhooks/tiendanube/privacidad/")) {
+    try {
+      const raw = await readRawBody(req);
+      const kind = url.pathname.replace("/api/webhooks/tiendanube/privacidad/", "");
+      const result = await tiendanube.handlePrivacyWebhook(kind, raw, req.headers["x-linkedstore-hmac-sha256"]);
+      sendJson(res, result.status, result.body);
+    } catch (error) {
+      console.error("[tiendanube] Error en el aviso de privacidad:", getErrorMessage(error));
+      sendJson(res, 500, { error: "Error interno" });
+    }
+    return;
+  }
+
+  if (req.method === "GET" && url.pathname === "/api/tiendanube/instalar") {
+    try {
+      const result = await tiendanube.handleInstall(url.searchParams.get("code") || "");
+      res.writeHead(result.status, { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" });
+      res.end(result.text);
+    } catch (error) {
+      console.error("[tiendanube] Error al instalar la app:", getErrorMessage(error));
+      res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end("No se pudo conectar la tienda.");
     }
     return;
   }
@@ -226,21 +268,9 @@ function getTutorInfo(key) {
   return { name, url };
 }
 
+// Azar criptográfico (antes Math.random, que es predecible).
 function buildAccessCode(tutorKey) {
-  return `${tutorKey}-${randomBlock()}-${randomBlock()}-${todayStamp()}`;
-}
-
-function randomBlock(length = 4) {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  return Array.from({ length }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
-}
-
-function todayStamp() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}${month}${day}`;
+  return buildSecureAccessCode(tutorKey);
 }
 
 function buildAccessUrl(tutorUrl, code) {
@@ -436,8 +466,15 @@ function removeAccents(value) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
+// Solo estos archivos son públicos; el código del servidor, el SQL y package.json no.
+const PUBLIC_FILES = new Set(["/index.html", "/admin.html", "/app.js", "/admin.js", "/styles.css"]);
+
 function serveStatic(urlPath, res) {
   const safePath = urlPath === "/" ? "/index.html" : urlPath;
+  if (!PUBLIC_FILES.has(safePath) && !/^\/assets\/[\w.-]+\.(png|jpe?g|svg|ico|webp)$/i.test(safePath)) {
+    sendJson(res, 404, { error: "Archivo no encontrado." });
+    return;
+  }
   const normalized = path.normalize(safePath).replace(/^(\.\.[/\\])+/, "");
   const filePath = path.join(rootDir, normalized);
 
@@ -485,6 +522,24 @@ function readJsonBody(req) {
         reject(new Error("JSON inválido en la solicitud."));
       }
     });
+    req.on("error", reject);
+  });
+}
+
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > 1_000_000) {
+        reject(new Error("La solicitud es demasiado grande."));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
 }

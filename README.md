@@ -45,6 +45,27 @@ const STORE_URL = "https://TU-TIENDANUBE.com/productos/profesores-ia-innova-scho
 
 por el enlace real de tu producto, coleccion o pagina de pago en Tiendanube.
 
+## Venta automática por Tiendanube
+
+Cuando un pedido del producto de los profesores (id `357172769`, variante «Profesor») queda pagado, el panel crea
+un código por profesor y por unidad, con 30 días de vigencia, y le envía al comprador un correo con un botón que
+entra directo a cada profesor. Código en `tiendanube.js`.
+
+Configuración (una sola vez):
+
+1. Ejecutar `supabase-tiendanube.sql` en Supabase (crea `panel_integrations` y `tiendanube_orders`).
+2. Crear una app propia en partners.tiendanube.com (separada de la de Saber 11), con permiso de leer pedidos:
+   - URL de redirección: `https://innova-school-panel.onrender.com/api/tiendanube/instalar`
+   - Avisos de privacidad: `https://innova-school-panel.onrender.com/api/webhooks/tiendanube/privacidad/store-redact`,
+     `.../customers-redact` y `.../customers-data-request`.
+3. Variables en Render: `TIENDANUBE_APP_ID`, `TIENDANUBE_APP_SECRET`, `APP_URL=https://innova-school-panel.onrender.com`,
+   `RESEND_API_KEY`, `MAIL_FROM` (por ejemplo `Virtual Planet <profesores@vplanet.co>`, de un dominio verificado en
+   Resend). Opcionales: `MAIL_BCC` (copia oculta), `MAIL_REPLY_TO`, `TIENDANUBE_ACCESS_DAYS` (30).
+4. Instalar la app en la tienda: Tiendanube redirige a `/api/tiendanube/instalar`, que guarda el token y registra el
+   aviso de pedido pagado.
+
+Pedidos sin correo enviado: `select * from tiendanube_orders where emailed_at is null;` en Supabase.
+
 ## Profesores incluidos
 
 - Profesor Julián: Física y Matemáticas.

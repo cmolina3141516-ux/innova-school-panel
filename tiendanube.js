@@ -311,9 +311,9 @@ function createTiendanube({ supabaseRequest, isSupabaseConfigured }) {
     const until = formatDate(record.expires_at);
     const orderLabel = record.order_number ? ` #${record.order_number}` : "";
     const subject = many
-      ? `Tus ${codes.length} accesos a los profesores con I.A. · Innova School`
-      : `Tu acceso a ${TUTORS[codes[0].tutor]?.name || "tu profesor"} con I.A. · Innova School`;
-    const intro = `Gracias por tu compra${orderLabel}. ${many ? "Estos son tus accesos" : "Este es tu acceso"} a los profesores con inteligencia artificial de Innova School by Virtual Planet, válido${many ? "s" : ""} hasta el ${until}.`;
+      ? `Tus ${codes.length} accesos a los profesores con I.A. · Nova School`
+      : `Tu acceso a ${TUTORS[codes[0].tutor]?.name || "tu profesor"} con I.A. · Nova School`;
+    const intro = `Gracias por tu compra${orderLabel}. ${many ? "Estos son tus accesos" : "Este es tu acceso"} a los profesores con inteligencia artificial de Nova School by Virtual Planet, válido${many ? "s" : ""} hasta el ${until}.`;
     const notes = [
       "Toca el botón de cada profesor para entrar: el código ya va incluido. También puedes escribirlo a mano en la página del profesor.",
       "Cada código es para un solo estudiante y funciona en una sesión a la vez.",
